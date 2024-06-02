@@ -31,8 +31,8 @@ from langchain_core.runnables import RunnablePassthrough
 
 
 st.header("HR ChatBot")
-os.environ["GOOGLE_API_KEY"] = 'AIzaSyA7u2G1y06P1KFfGuT1gVhj-8JbV409NdM'
-os.environ["COHERE_API_KEY"] = 'ErFPP679z7c4wPQLv8zp63JRblE8N2I4N1LxGmUQ'
+os.environ["GOOGLE_API_KEY"] = os.getenv('GOOGLE_API_KEY')
+os.environ["COHERE_API_KEY"] = os.getenv('COHERE_API_KEY')
 llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
