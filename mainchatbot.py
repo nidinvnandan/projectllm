@@ -1,71 +1,62 @@
-import google.generativeai as genai
+import asyncio
 import os
+import streamlit as st
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
-import urllib
-import warnings
-from pathlib import Path as p
-from pprint import pprint
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-import pandas as pd
-from langchain import PromptTemplate
-from langchain.chains.question_answering import load_qa_chain
-from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import LLMChainExtractor
-from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
-from langchain_cohere import CohereRerank
-from langchain_community.llms import Cohere
-import streamlit as st
-from IPython.display import display
-from IPython.display import Markdown
-import textwrap
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough
+from langchain_cohere import CohereRerank
+from langchain_community.vectorstores import FAISS
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import LLMChainExtractor
+from langchain.runnables import RunnablePassthrough
 
-
+# Streamlit header
 st.header("HR ChatBot")
+
+# Environment setup
 os.environ["GOOGLE_API_KEY"] = os.getenv('GOOGLE_API_KEY')
 os.environ["COHERE_API_KEY"] = os.getenv('COHERE_API_KEY')
-llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7)
+
+# Initialize language model and embeddings
+llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.7)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
+# Function to load and split PDF
 @st.cache_resource
 def load_and_split_pdf(pdf_path):
-    loader = PyPDFLoader("ZETA_CORPORATION.pdf")
-
+    loader = PyPDFLoader(pdf_path)
     docs = loader.load_and_split()
-
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    documents = text_splitter.split_documents(docs)
-    return documents
+    return text_splitter.split_documents(docs)
+
+# Load documents from PDF
 pdf_path = "ZETA_CORPORATION.pdf"
 documents = load_and_split_pdf(pdf_path)
-@st.cache_resource
 
+# Function to set up retrievers
+@st.cache_resource
 def vector():
-    llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7)
     vector = FAISS.from_documents(documents, embeddings)
     retriever = vector.as_retriever(search_kwargs={"k": 10})
     compressor = LLMChainExtractor.from_llm(llm)
     compression_retriever = ContextualCompressionRetriever(
-    base_compressor=compressor, base_retriever=retriever,
-    search_kwargs={"k": 8})
-    llm = llm
-    compressor = CohereRerank(top_n=5)
+        base_compressor=compressor, base_retriever=retriever, search_kwargs={"k": 8}
+    )
     rerank_retriever = ContextualCompressionRetriever(
-    base_compressor=compressor, base_retriever=compression_retriever
+        base_compressor=CohereRerank(top_n=5), base_retriever=compression_retriever
     )
     return rerank_retriever
-rerank_retriever=vector()
+
+# Initialize retriever
+rerank_retriever = vector()
+
+# Output parser
 output_parser = StrOutputParser()
-llm=ChatGoogleGenerativeAI(model='gemini-pro',convert_system_message_to_human=True,temperature=0.5)
+
+# Prompt templates
 instruction_to_system = """
 Given a chat history and the latest user question 
 which might reference context in the chat history, formulate a standalone question 
@@ -81,13 +72,13 @@ question_maker_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-
 question_chain = question_maker_prompt | llm | StrOutputParser()
-# Use three sentences maximum and keep the answer concise.\
-qa_system_prompt = """be act like a HR officer an answer the questions to the employye
+
+qa_system_prompt = """be act like a HR officer and answer the questions to the employee
 {context}
 Question: {question}
 Helpful Answer:"""
+
 qa_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", qa_system_prompt),
@@ -95,29 +86,39 @@ qa_prompt = ChatPromptTemplate.from_messages(
         ("human", "{question}"),
     ]
 )
+
+# Function to generate contextualized question
 def contextualized_question(input: dict):
     if input.get("chat_history"):
         return question_chain
     else:
         return input["question"]
+
+# Set up retrieval chain
 retriever_chain = RunnablePassthrough.assign(
-        context=contextualized_question | rerank_retriever #| format_docs
-    )
+    context=contextualized_question | rerank_retriever
+)
+
+# Final RAG chain
 rag_chain = (
     retriever_chain
     | qa_prompt
     | llm
 )
+
+# Initialize chat history
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
 # Function to reset chat history
 def reset_chat_history():
     st.session_state.chat_history = []
+
 # New Chat button
 if st.button('New Chat'):
     reset_chat_history()
-# Custom CSS to style the messages
+
+# Custom CSS for chat messages
 st.markdown("""
     <style>
     .bot-message {
@@ -136,10 +137,8 @@ st.markdown("""
         margin: 10px 0;
         color: black;
     }
-    
     </style>
-    </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # Display chat history
 for i in range(0, len(st.session_state.chat_history), 2):
@@ -148,17 +147,19 @@ for i in range(0, len(st.session_state.chat_history), 2):
     st.markdown(f"<div class='human-message'><strong>You:</strong> {human_message}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='bot-message'><strong>Bot:</strong> {ai_message}</div>", unsafe_allow_html=True)
 
+# Input query
 query = st.text_input('Enter the query')
 
+# Function to answer the question
 def answer_question(question):
     recent_history = st.session_state.chat_history[-14:] if len(st.session_state.chat_history) > 14 else st.session_state.chat_history
-    ai_msg = rag_chain.invoke({"question": question, "chat_history": recent_history})
+    ai_msg = asyncio.run(rag_chain.invoke({"question": question, "chat_history": recent_history}))
     st.session_state.chat_history.extend([HumanMessage(content=question), ai_msg])
     if len(st.session_state.chat_history) > 14:
         st.session_state.chat_history = st.session_state.chat_history[-14:]
     return ai_msg.content
-    
 
+# Answer the query on button press
 if st.button('➤'):
     if query:
         result = answer_question(query)
