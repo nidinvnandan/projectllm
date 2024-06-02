@@ -128,15 +128,15 @@ st.markdown("""
         padding: 10px;
         border-radius: 5px;
         margin: 10px 0;
-        color: black;
+        color: black.
     }
     .human-message {
         text-align: right;
-        background-color: #e1f5fe;
-        padding: 10px;
-        border-radius: 5px;
-        margin: 10px 0;
-        color: black;
+        background-color: #e1f5fe.
+        padding: 10px.
+        border-radius: 5px.
+        margin: 10px 0.
+        color: black.
     }
     </style>
 """, unsafe_allow_html=True)
@@ -152,9 +152,9 @@ for i in range(0, len(st.session_state.chat_history), 2):
 query = st.text_input('Enter the query')
 
 # Function to answer the question
-def answer_question(question):
+async def answer_question(question):
     recent_history = st.session_state.chat_history[-14:] if len(st.session_state.chat_history) > 14 else st.session_state.chat_history
-    ai_msg = asyncio.run(rag_chain({"question": question, "chat_history": recent_history}))
+    ai_msg = await rag_chain({"question": question, "chat_history": recent_history})
     st.session_state.chat_history.extend([HumanMessage(content=question), ai_msg])
     if len(st.session_state.chat_history) > 14:
         st.session_state.chat_history = st.session_state.chat_history[-14:]
@@ -163,7 +163,9 @@ def answer_question(question):
 # Answer the query on button press
 if st.button('➤'):
     if query:
-        result = answer_question(query)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(answer_question(query))
         st.markdown(result)
     else:
         st.write("Please enter a query.")
