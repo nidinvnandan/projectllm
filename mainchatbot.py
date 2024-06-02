@@ -33,7 +33,7 @@ from langchain_core.runnables import RunnablePassthrough
 st.header("HR ChatBot")
 os.environ["GOOGLE_API_KEY"] = 'AIzaSyA7u2G1y06P1KFfGuT1gVhj-8JbV409NdM'
 os.environ["COHERE_API_KEY"] = 'ErFPP679z7c4wPQLv8zp63JRblE8N2I4N1LxGmUQ'
-
+@st.cache_resource
 def load_and_split_pdf(pdf_path):
     loader = PyPDFLoader("ZETA_CORPORATION.pdf")
 
@@ -44,6 +44,22 @@ def load_and_split_pdf(pdf_path):
     return documents
 pdf_path = "ZETA_CORPORATION.pdf"
 documents = load_and_split_pdf(pdf_path)
+@st.cache_resource
+def vector():
+    llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7)
+    vector = FAISS.from_documents(documents, embeddings)
+    retriever = vector.as_retriever(search_kwargs={"k": 10})
+    compressor = LLMChainExtractor.from_llm(llm)
+    compression_retriever = ContextualCompressionRetriever(
+    base_compressor=compressor, base_retriever=retriever,
+    search_kwargs={"k": 8})
+    llm = llm
+    compressor = CohereRerank(top_n=5)
+    rerank_retriever = ContextualCompressionRetriever(
+    base_compressor=compressor, base_retriever=compression_retriever
+    )
+    return rerank_retriever
+rerank_retriever=vector()
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
