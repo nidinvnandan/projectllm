@@ -11,3 +11,4 @@ langchain-core==0.1.52
 langchain-text-splitters==0.0.1
 langchain-cohere
 IPython
+pypdf
