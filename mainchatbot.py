@@ -45,11 +45,11 @@ pdf_path = "ZETA_CORPORATION.pdf"
 documents = load_and_split_pdf(pdf_path)
 @st.cache_resource
 def vector():
-    llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7)
+    
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector = FAISS.from_documents(documents, embeddings)
     retriever = vector.as_retriever(search_kwargs={"k": 10})
-    compressor = LLMChainExtractor.from_llm(llm)
+    compressor = LLMChainExtractor.from_llm(ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7))
     compression_retriever = ContextualCompressionRetriever(
     base_compressor=compressor, base_retriever=retriever,
     search_kwargs={"k": 8})
