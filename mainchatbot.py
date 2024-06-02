@@ -1,4 +1,3 @@
-import asyncio
 import os
 import streamlit as st
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -11,7 +10,7 @@ from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
-from langchain.runnables import RunnablePassthrough
+import asyncio
 
 # Streamlit header
 st.header("HR ChatBot")
@@ -90,21 +89,23 @@ qa_prompt = ChatPromptTemplate.from_messages(
 # Function to generate contextualized question
 def contextualized_question(input: dict):
     if input.get("chat_history"):
-        return question_chain
+        return question_chain.invoke(input)
     else:
         return input["question"]
 
 # Set up retrieval chain
-retriever_chain = RunnablePassthrough.assign(
-    context=contextualized_question | rerank_retriever
-)
+async def retriever_chain(input):
+    context = contextualized_question(input)
+    return await rerank_retriever.arun({"query": context})
 
 # Final RAG chain
-rag_chain = (
-    retriever_chain
-    | qa_prompt
-    | llm
-)
+async def rag_chain(input):
+    context = await retriever_chain(input)
+    qa_prompt_input = {
+        "context": context,
+        "question": input["question"]
+    }
+    return await llm.arun(qa_prompt_input)
 
 # Initialize chat history
 if 'chat_history' not in st.session_state:
@@ -153,7 +154,7 @@ query = st.text_input('Enter the query')
 # Function to answer the question
 def answer_question(question):
     recent_history = st.session_state.chat_history[-14:] if len(st.session_state.chat_history) > 14 else st.session_state.chat_history
-    ai_msg = asyncio.run(rag_chain.invoke({"question": question, "chat_history": recent_history}))
+    ai_msg = asyncio.run(rag_chain({"question": question, "chat_history": recent_history}))
     st.session_state.chat_history.extend([HumanMessage(content=question), ai_msg])
     if len(st.session_state.chat_history) > 14:
         st.session_state.chat_history = st.session_state.chat_history[-14:]
