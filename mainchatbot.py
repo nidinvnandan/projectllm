@@ -45,3 +45,12 @@ def load_and_split_pdf(pdf_path):
     return documents
 pdf_path = "ZETA_CORPORATION.pdf"
 documents = load_and_split_pdf(pdf_path)
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
+# Function to reset chat history
+def reset_chat_history():
+    st.session_state.chat_history = []
+# New Chat button
+if st.button('New Chat'):
+    reset_chat_history()
