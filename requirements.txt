@@ -12,3 +12,4 @@ langchain-text-splitters==0.0.1
 langchain-cohere
 IPython
 pypdf
+faiss-cpu
