@@ -53,7 +53,7 @@ def vector():
     compression_retriever = ContextualCompressionRetriever(
     base_compressor=compressor, base_retriever=retriever,
     search_kwargs={"k": 8})
-    llm = llm
+    
     compressor = CohereRerank(top_n=5)
     rerank_retriever = ContextualCompressionRetriever(
     base_compressor=compressor, base_retriever=compression_retriever
