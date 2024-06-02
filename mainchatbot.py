@@ -165,6 +165,3 @@ if st.button('➤'):
         st.markdown(result)
     else:
         st.write("Please enter a query.")
-
-st.write(st.session_state.chat_history)
-st.write(len(st.session_state.chat_history))
