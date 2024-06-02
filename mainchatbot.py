@@ -49,7 +49,7 @@ def vector():
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector = FAISS.from_documents(documents, embeddings)
     retriever = vector.as_retriever(search_kwargs={"k": 10})
-    compressor = LLMChainExtractor.from_llm(ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7))
+    compressor = LLMChainExtractor.from_llm(llm)
     compression_retriever = ContextualCompressionRetriever(
     base_compressor=compressor, base_retriever=retriever,
     search_kwargs={"k": 8})
